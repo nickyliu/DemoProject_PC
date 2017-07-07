@@ -1,14 +1,17 @@
 package com.example.liweiliu.personalcapitaldemo;
 
-import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
+import android.support.v4.util.LruCache;
 import android.support.v7.widget.LinearLayoutCompat.LayoutParams;
 import android.support.v7.widget.RecyclerView;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,20 +23,16 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyView
     private final OnItemClickListener mListener;
     private Context mContext;
     private List<ListItem> mData = new ArrayList<>();
+    private LruCache<String, Bitmap> mMemoryCache;
 
     public interface OnItemClickListener {
         void onItemClick(int position);
     }
 
-    public RecyclerAdapter(Context context, OnItemClickListener listener) {
+    public RecyclerAdapter(Context context, OnItemClickListener listener,LruCache<String, Bitmap> memoryCache) {
         mContext = context;
         mListener = listener;
-    }
-
-    public RecyclerAdapter(Context context, ArrayList<ListItem> data, OnItemClickListener listener) {
-        mContext = context;
-        mListener = listener;
-        mData = data;
+        mMemoryCache = memoryCache;
     }
 
     public ListItem getItemByPosition(int position) {
@@ -61,10 +60,23 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyView
     public void onBindViewHolder(MyViewHolder holder, final int position) {
 
         ListItem item = mData.get(position);
-        new ImageDownloader(holder.customView)
-                .execute(item.getImage());
+
+        // load image
+        String imageUrl = item.getImage();
+        final Bitmap bitmap = getBitmapFromMemCache(imageUrl);
+        if (bitmap != null) {
+            holder.customView.setBitmap(bitmap);
+        } else {
+            new ImageDownloader(holder.customView).execute(imageUrl);
+        }
+        if (position ==0) {
+            // set summary
+            holder.customView.setDescription(item.getDescription());
+        } else {
+            holder.customView.setDescription("");
+        }
         holder.customView.setText(item.getTitle());
-        holder.customView.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, isTablet() ? VIEW_HEIGHT_TABLET : VIEW_HEIGHT_PHONE));
+        holder.customView.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, Util.isTablet(mContext) ? VIEW_HEIGHT_TABLET : VIEW_HEIGHT_PHONE));
 
         holder.customView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -91,17 +103,41 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.MyView
         }
     }
 
-    private boolean isTablet() {
-        DisplayMetrics metrics = new DisplayMetrics();
-        ((Activity) mContext).getWindowManager().getDefaultDisplay().getMetrics(metrics);
+    public void addBitmapToMemoryCache(String key, Bitmap bitmap) {
+        if (getBitmapFromMemCache(key) == null) {
+            mMemoryCache.put(key, bitmap);
+        }
+    }
 
-        float yInches = metrics.heightPixels / metrics.ydpi;
-        float xInches = metrics.widthPixels / metrics.xdpi;
-        double diagonalInches = Math.sqrt(xInches * xInches + yInches * yInches);
-        if (diagonalInches >= 6.5) {
-            return true;
-        } else {
-            return false;
+    public Bitmap getBitmapFromMemCache(String key) {
+        return mMemoryCache.get(key);
+    }
+
+    private class ImageDownloader extends AsyncTask<String, Void, Bitmap> {
+        CustomView mView;
+
+        public ImageDownloader(CustomView imageView) {
+            this.mView = imageView;
+        }
+
+        protected Bitmap doInBackground(String... urls) {
+            String urldisplay = urls[0];
+            Bitmap bitmap = null;
+            try {
+                InputStream in = new java.net.URL(urldisplay).openStream();
+                bitmap = BitmapFactory.decodeStream(in);
+                addBitmapToMemoryCache(urldisplay, bitmap);
+
+            } catch (Exception e) {
+                Log.e("Error", e.getMessage());
+                e.printStackTrace();
+            }
+            return bitmap;
+        }
+
+        protected void onPostExecute(Bitmap result) {
+
+            mView.setBitmap(result);
         }
     }
 }

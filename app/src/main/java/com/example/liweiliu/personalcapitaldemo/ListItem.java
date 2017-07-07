@@ -1,5 +1,8 @@
 package com.example.liweiliu.personalcapitaldemo;
 
+import android.text.Spanned;
+import android.util.Log;
+
 public class ListItem {
     private String mTitle;
     private String mImage;
@@ -32,6 +35,7 @@ public class ListItem {
     }
 
     public void setTitle(String title) {
+        Log.d("Spanned","title:"+title);
         this.mTitle = title;
     }
 

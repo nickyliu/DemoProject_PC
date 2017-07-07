@@ -21,18 +21,21 @@ public class WebViewActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_web_view);
         Intent intent = getIntent();
         String url = intent.getStringExtra(INTENT_URL);
         String title = intent.getStringExtra(INTENT_TITLE);
 
-        RelativeLayout main = findViewById(R.id.web_layout);
+        RelativeLayout relativeLayout = new RelativeLayout(this);
+        LayoutParams layoutParams = new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT);
+        relativeLayout.setLayoutParams(layoutParams);
 
         mWebView = new WebView(this);
-        mWebView.setLayoutParams(new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT,
+        mWebView.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT));
 
-        main.addView(mWebView);
+        relativeLayout.addView(mWebView);
+
+        setContentView(relativeLayout);
 
         // Custom Action Bar
         ActionBar actionBar = getSupportActionBar();
